@@ -1,0 +1,124 @@
+@startuml
+!define table(x) class x << (T,mistyrose) >>      
+!define view(x) class x << (V,lightblue) >>      
+!define table(x) class x << (T,mistyrose) >>     
+!define tr(x) class x << (R,red) >>     
+!define tf(x) class x << (F,darkorange) >>      
+!define af(x) class x << (F,white) >>      
+!define fn(x) class x << (F,plum) >>      
+!define fs(x) class x << (F,tan) >>       
+!define ft(x) class x << (F,wheat) >>      
+!define if(x) class x << (F,gaisboro) >>      
+!define p(x) class x << (P,indianred) >>      
+!define pc(x) class x << (P,lemonshiffon) >>      
+!define x(x) class x << (P,linen) >>          
+
+hide methods      
+hide stereotypes     
+skinparam classarrowcolor gray          
+
+table(dbo.authors) {    
+au_id: varchar <<pk>>    
+au_lname: varchar    
+au_fname: varchar    
+phone: char    
+address: varchar    
+city: varchar    
+state: char    
+zip: char    
+contract: bit   
+ __ trigger __    Trigger_authors   
+ }
+
+table(dbo.discounts) {    
+discounttype: varchar    
+stor_id: char <<fk>>    
+lowqty: smallint    
+highqty: smallint    
+discount: decimal    
+}  
+  
+table(dbo.employee) {    
+emp_id: char <<pk>>    
+fname: varchar    
+minit: char    
+lname: varchar    
+job_id: smallint <<fk>>    
+job_lvl: tinyint    
+pub_id: char <<fk>>    
+hire_date: datetime    
+__ trigger __    employee_insupd    
+}    
+
+table(dbo.jobs) {    
+job_id: smallint <<pk>>    
+job_desc: varchar    
+min_lvl: tinyint    
+max_lvl: tinyint  
+}
+  
+table(dbo.publishers) {    
+pub_id: char <<pk>>    
+pub_name: varchar   
+ city: varchar    
+ state: char    
+ country: varchar 
+ }    
+
+table(dbo.roysched) {    
+title_id: varchar <<fk>>    
+lorange: int    
+hirange: int    
+royalty: int    
+}    
+
+table(dbo.sales) {   
+ stor_id: char <<pk>> <<fk>>   
+ ord_num: varchar <<pk>>    
+ ord_date: datetime    
+ qty: smallint    
+ payterms: varchar    
+ title_id: varchar <<pk>> <<fk>>   
+ }    
+
+table(dbo.stores) {    
+stor_id: char <<pk>>    
+stor_name: varchar    
+stor_address: varchar    
+city: varchar    
+state: char    
+zip: char    
+}    
+
+table(dbo.titleauthor) {    
+au_id: varchar <<pk>> <<fk>>    
+title_id: varchar <<pk>> <<fk>>    
+au_ord: tinyint    
+royaltyper: int    
+}    
+
+table(dbo.titles) {    
+title_id: varchar <<pk>>    
+title: varchar    
+type: char    
+pub_id: char <<fk>>    
+price: money    
+advance: money    
+royalty: int    
+ytd_sales: int    
+notes: varchar    
+pubdate: datetime    
+}    
+
+dbo.titleauthor -|> dbo.authors:FK    
+dbo.employee -|> dbo.jobs:FK    
+dbo.employee -|> dbo.publishers:FK    
+dbo.titles -|> dbo.publishers:FK    
+dbo.discounts -|> dbo.stores:FK    
+dbo.sales -|> dbo.stores:FK   
+dbo.roysched -|> dbo.titles:FK    
+dbo.sales -|> dbo.titles:FK    
+dbo.titleauthor -|> dbo.titles:FK  
+
+ 
+@enduml
