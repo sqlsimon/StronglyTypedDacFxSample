@@ -17,11 +17,15 @@ namespace StronglyTypedDacFxSample
 
             var model = new TSqlTypedModel(@"..\..\..\SampleDacPac\pubs.dacpac");
 
-            var s = OutputPlantUMLTableDef(model);
+            //var s = docdbtest(model);
+
+            var s = OutputPlantUmlSchemaDef(model);
 
             System.Console.WriteLine("///////////////////////////////////////////////////////////////////////////////////");
 
             System.Console.Write(s);
+            System.Console.WriteLine("");
+            OutputPlantUMLRelationships(model);
 
             System.Console.ReadKey();
 
@@ -36,30 +40,147 @@ namespace StronglyTypedDacFxSample
 
         }
 
-        private static string OutputPlantUMLTableDef(TSqlTypedModel model)
+        private static string docdbtest(TSqlTypedModel model)
         {
             var tables = model.GetObjects<TSqlTable>(DacQueryScopes.UserDefined);
-            StringBuilder outputString = new StringBuilder();
 
             foreach (var t in tables)
             {
-                // need to string [] from the name
-                outputString.AppendFormat("table({0}) {{\n", removeQualifiers(t.Name.ToString()));
 
-                OutputPlantUMLPrimaryKey(outputString, t);
-                OutputPlantUMLForeignKey(outputString, t);
-                OutputPlantUMLColumns(outputString, t);
+                var objects = t.GetChildren();
+                System.Console.WriteLine("===============================================");
+                System.Console.WriteLine("{0}",t.Name.ToString());
+                System.Console.WriteLine("-----------------------------------------------");
 
-                outputString.AppendLine(@"}");
-                outputString.AppendLine("");
 
-                // NEED TO WRITE CODE THAT OUTPUTS RELATIONSHIPS
-                //OutputPlantUMLRelationships(outputString, model);
+                foreach (var o in objects)
+                {
+                    if (o.ObjectType.Name == "DefaultConstraint")
+                    {
+                        var expression = o.GetProperty(DefaultConstraint.Expression);
+
+                        System.Console.WriteLine("{0}, {1}", "DEFAULT", expression);          
+                      //foreach(var g in DefaultConstraint.TypeClass.Properties)
+                      //  {
+                      //      System.Console.WriteLine(" default constraint prop name: {0}", g.Name);
+                      //  }
+                      
+                        //o.GetProperty<DefaultConstraint>();
+                        //System.Console.WriteLine("");
+                    }
+                    
+                    if (o.ObjectType.Name == "ForeignKeyConstraint")
+                    {
+
+                        var ft = o.GetReferenced(ForeignKeyConstraint.ForeignTable);
+                        var fcs = o.GetReferenced(ForeignKeyConstraint.ForeignColumns);
+
+                        foreach (var f in ft)
+                        {
+                            System.Console.Write("Foreign Table {0} ", f.Name);
+                        }
+                        foreach (var fc in fcs)
+                        {
+                            System.Console.WriteLine("Foreign Column {0}", fc.Name);
+                        }
+                        foreach (var g in ForeignKeyConstraint.TypeClass.Properties)
+                        {
+                            System.Console.WriteLine(" FK constraint prop name: {0}", g.Name);
+                        }
+
+                    }
+
+                    if (o.ObjectType.Name != "Column")
+                    {
+                      
+                        System.Console.WriteLine("\t*\t{0} --> {1} {2}", o.Name.ToString(), o.ObjectType.Name, o.Name.ExternalParts);
+                    }
+                }
+            }
+
+            return "";
+        }
+
+        // loop over schema and call the individual table code to output the table def
+        private static string OutputPlantUmlSchemaDef(TSqlTypedModel model)
+        {
+            var schemas = model.GetObjects<TSqlSchema>(DacQueryScopes.Default);
+            StringBuilder outputstring = new StringBuilder();
+
+            foreach(var schema in schemas)
+            {
+                if (schema.Name.Parts[0] == "dbo")
+                { 
+                    outputstring.AppendFormat("\npackage {0} {{", schema.Name);
+
+                    // put tables here
+                    var x = schema.GetChildren(DacQueryScopes.UserDefined);
+
+
+                    foreach (var thing in x)
+                    {
+                        if (thing.ObjectType == ModelSchema.Table)
+                        {
+                            var tbl = new TSqlTable(thing);
+                            outputstring.Append("\n");
+                            outputstring.Append(OutputPlantUMLTableDef(tbl));
+                            outputstring.Append("\n");
+                        }
+                    }
+
+                    outputstring.Append("}\n");
+                }
+            }
+
+            schemas = model.GetObjects<TSqlSchema>(DacQueryScopes.UserDefined);
+            foreach (var schema in schemas)
+            {
+                    outputstring.AppendFormat("\npackage {0} {{", schema.Name);
+
+                    // put tables here
+                    var x = schema.GetChildren(DacQueryScopes.UserDefined);
+                    
+
+                    foreach (var thing in x)
+                    {
+                        if (thing.ObjectType == ModelSchema.Table)
+                        {
+                            var tbl = new TSqlTable(thing);
+                            outputstring.Append("\n");
+                            outputstring.Append(OutputPlantUMLTableDef(tbl));
+                            outputstring.Append("\n");
+                        }
+                   }
+
+                    outputstring.Append("\n}}");
 
             }
 
+
+            return (outputstring.ToString());
+
+        }
+
+        //output a single table in plantUML format
+        private static string OutputPlantUMLTableDef(TSqlTable tbl)
+        {
+               StringBuilder outputString = new StringBuilder();
+
+                // need to string [] from the name
+                outputString.AppendFormat("table({0}) {{\n", removeQualifiers(tbl.Name.ToString()));
+
+                OutputPlantUMLPrimaryKey(outputString, tbl);
+                OutputPlantUMLForeignKey(outputString, tbl);
+                OutputPlantUMLColumns(outputString, tbl);
+
+                outputString.AppendLine(@"}");
+                outputString.AppendLine("");
+             
             return (outputString.ToString());
         }
+
+
+ 
 
         private static string OutputPlantUMLColumns(StringBuilder outputString, TSqlTable t)
         {
@@ -113,6 +234,27 @@ namespace StronglyTypedDacFxSample
             }
             return (outputString.ToString());
         }
+
+        private static void OutputPlantUMLRelationships(TSqlTypedModel model)
+        {
+            var rels = model.GetObjects<TSqlForeignKeyConstraint>(DacQueryScopes.UserDefined);
+
+            foreach(var rel in rels)
+            {
+                System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()));
+
+                foreach (var ft in rel.ForeignTable)
+                {
+                    System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
+                }
+           
+
+                
+
+            }
+  
+        }
+
     }
 
 }

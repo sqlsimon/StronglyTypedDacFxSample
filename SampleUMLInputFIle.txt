@@ -17,6 +17,8 @@ hide methods
 hide stereotypes     
 skinparam classarrowcolor gray          
 
+package dbo {
+
 table(dbo.authors) {    
 au_id: varchar <<pk>>    
 au_lname: varchar    
@@ -109,6 +111,8 @@ ytd_sales: int
 notes: varchar    
 pubdate: datetime    
 }    
+
+}
 
 dbo.titleauthor -|> dbo.authors:FK    
 dbo.employee -|> dbo.jobs:FK    
