@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Dac.Extensions.Prototype;
 using Microsoft.SqlServer.Dac.Model;
-
+using Shields.GraphViz.Models;
+using Shields.GraphViz.Services;
+using Shields.GraphViz.Components;
 
 namespace StronglyTypedDacFxSample
 {
@@ -17,15 +20,72 @@ namespace StronglyTypedDacFxSample
 
             var model = new TSqlTypedModel(@"..\..\..\SampleDacPac\pubs.dacpac");
 
+            string fmt = "PlantUML"; // "gVizNative"
             //var s = docdbtest(model);
 
-            var s = OutputPlantUmlSchemaDef(model);
+            var modeldef = "";
+
+            if (fmt == "PlantUML")
+            {
+                modeldef = @"@startuml
+                    !define table(x) class x << (T,mistyrose) >>      
+                    !define view(x) class x << (V,lightblue) >>      
+                    !define table(x) class x << (T,mistyrose) >>     
+                    !define tr(x) class x << (R,red) >>     
+                    !define tf(x) class x << (F,darkorange) >>      
+                    !define af(x) class x << (F,white) >>      
+                    !define fn(x) class x << (F,plum) >>      
+                    !define fs(x) class x << (F,tan) >>       
+                    !define ft(x) class x << (F,wheat) >>      
+                    !define if(x) class x << (F,gaisboro) >>      
+                    !define p(x) class x << (P,indianred) >>      
+                    !define pc(x) class x << (P,lemonshiffon) >>      
+                    !define x(x) class x << (P,linen) >>          
+
+                    hide methods      
+                    hide stereotypes     
+                    skinparam classarrowcolor gray          
+                    ";
+
+            }
+            else if (fmt == "gVizNative")
+            {
+                modeldef = @"digraph G { 
+                        //  
+                        // Defaults
+                        //  
+ 
+                        // Box for entities
+                        node [shape=none, margin=0]
+ 
+                        // One-to-many relation (from one, to many)
+                        edge [arrowhead=crow, arrowtail=none, dir=both]";
+            }
+
+            var s = OutputDiagramSchemaDef(model,fmt);
 
             System.Console.WriteLine("///////////////////////////////////////////////////////////////////////////////////");
 
+            // really need to tie all the strings together
+            System.Console.WriteLine(modeldef);
             System.Console.Write(s);
             System.Console.WriteLine("");
-            OutputPlantUMLRelationships(model);
+            OutputDiagramRelationships(model,fmt);
+
+            var modelfooter = "";
+
+            if (fmt == "PlantUML")
+            {
+                modelfooter = "\n@enduml";
+            }
+            else if (fmt == "gVizNative")
+            {
+                modelfooter = "\n}";
+            }
+            System.Console.WriteLine(modelfooter);
+
+                GraphVizTest(model);
+
 
             System.Console.ReadKey();
 
@@ -102,7 +162,7 @@ namespace StronglyTypedDacFxSample
         }
 
         // loop over schema and call the individual table code to output the table def
-        private static string OutputPlantUmlSchemaDef(TSqlTypedModel model)
+        private static string OutputDiagramSchemaDef(TSqlTypedModel model,string outputFormat)
         {
             var schemas = model.GetObjects<TSqlSchema>(DacQueryScopes.Default);
             StringBuilder outputstring = new StringBuilder();
@@ -123,7 +183,7 @@ namespace StronglyTypedDacFxSample
                         {
                             var tbl = new TSqlTable(thing);
                             outputstring.Append("\n");
-                            outputstring.Append(OutputPlantUMLTableDef(tbl));
+                            outputstring.Append(OutputDiagramTableDef(tbl,outputFormat));
                             outputstring.Append("\n");
                         }
                     }
@@ -147,7 +207,7 @@ namespace StronglyTypedDacFxSample
                         {
                             var tbl = new TSqlTable(thing);
                             outputstring.Append("\n");
-                            outputstring.Append(OutputPlantUMLTableDef(tbl));
+                            outputstring.Append(OutputDiagramTableDef(tbl,outputFormat));
                             outputstring.Append("\n");
                         }
                    }
@@ -162,16 +222,16 @@ namespace StronglyTypedDacFxSample
         }
 
         //output a single table in plantUML format
-        private static string OutputPlantUMLTableDef(TSqlTable tbl)
+        private static string OutputDiagramTableDef(TSqlTable tbl, string outputFormat)
         {
                StringBuilder outputString = new StringBuilder();
 
                 // need to string [] from the name
                 outputString.AppendFormat("table({0}) {{\n", removeQualifiers(tbl.Name.ToString()));
 
-                OutputPlantUMLPrimaryKey(outputString, tbl);
-                OutputPlantUMLForeignKey(outputString, tbl);
-                OutputPlantUMLColumns(outputString, tbl);
+                OutputDiagramPrimaryKey(outputString, tbl,outputFormat);
+                OutputDiagramForeignKey(outputString, tbl,outputFormat);
+                OutputDiagramColumns(outputString, tbl,outputFormat);
 
                 outputString.AppendLine(@"}");
                 outputString.AppendLine("");
@@ -182,7 +242,7 @@ namespace StronglyTypedDacFxSample
 
  
 
-        private static string OutputPlantUMLColumns(StringBuilder outputString, TSqlTable t)
+        private static string OutputDiagramColumns(StringBuilder outputString, TSqlTable t, string outputFormat)
         {
             foreach (var Column in t.Columns)
             {
@@ -196,7 +256,7 @@ namespace StronglyTypedDacFxSample
             return (outputString.ToString());
         }
 
-        private static string OutputPlantUMLPrimaryKey(StringBuilder outputString, TSqlTable t)
+        private static string OutputDiagramPrimaryKey(StringBuilder outputString, TSqlTable t, string outputFormat)
         {
             foreach (var primaryKey in t.PrimaryKeyConstraints)
             {
@@ -215,7 +275,7 @@ namespace StronglyTypedDacFxSample
             return (outputString.ToString());
         }
 
-        private static string OutputPlantUMLForeignKey(StringBuilder outputString, TSqlTable t)
+        private static string OutputDiagramForeignKey(StringBuilder outputString, TSqlTable t,string outputFormat)
         {
             foreach (var foreignKey in t.ForeignKeyConstraints)
             {
@@ -235,7 +295,7 @@ namespace StronglyTypedDacFxSample
             return (outputString.ToString());
         }
 
-        private static void OutputPlantUMLRelationships(TSqlTypedModel model)
+        private static void OutputDiagramRelationships(TSqlTypedModel model,string outputFormat)
         {
             var rels = model.GetObjects<TSqlForeignKeyConstraint>(DacQueryScopes.UserDefined);
 
@@ -255,6 +315,29 @@ namespace StronglyTypedDacFxSample
   
         }
 
+        
+        private static async void GraphVizTest(TSqlTypedModel model)
+        {
+
+            string graphVizBin = @"C:\Program Files (x86)\Graphviz2.38\bin";
+        
+            Graph graph = Graph.Undirected
+                 .Add(EdgeStatement.For("a", "b"))
+                .Add(EdgeStatement.For("a", "c"));
+
+          
+
+            IRenderer renderer = new Renderer(graphVizBin);
+            using (Stream file = File.Create("graph.png"))
+            {
+                await renderer.RunAsync(
+                    graph, file,
+                    RendererLayouts.Dot,
+                    RendererFormats.Png,
+                    CancellationToken.None);
+            }
+
+        }
     }
 
 }
