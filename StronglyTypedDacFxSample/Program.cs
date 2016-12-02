@@ -21,6 +21,7 @@ namespace StronglyTypedDacFxSample
             var model = new TSqlTypedModel(@"..\..\..\SampleDacPac\pubs.dacpac");
 
             string fmt = "PlantUML"; // "gVizNative"
+            fmt = "gVizNative";
             //var s = docdbtest(model);
 
             var modeldef = "";
@@ -170,8 +171,12 @@ namespace StronglyTypedDacFxSample
             foreach(var schema in schemas)
             {
                 if (schema.Name.Parts[0] == "dbo")
-                { 
-                    outputstring.AppendFormat("\npackage {0} {{", schema.Name);
+                {
+
+                    if (outputFormat == "PlanUML")
+                    { 
+                        outputstring.AppendFormat("\npackage {0} {{", schema.Name);
+                    }
 
                     // put tables here
                     var x = schema.GetChildren(DacQueryScopes.UserDefined);
@@ -226,16 +231,33 @@ namespace StronglyTypedDacFxSample
         {
                StringBuilder outputString = new StringBuilder();
 
-                // need to string [] from the name
-                outputString.AppendFormat("table({0}) {{\n", removeQualifiers(tbl.Name.ToString()));
+                if(outputFormat == "PlantUML")
+                { 
+                    // need to string [] from the name
+                    outputString.AppendFormat("table({0}) {{\n", removeQualifiers(tbl.Name.ToString()));
+                }
+                else if (outputFormat == "gVizNative")
+                {
+                    outputString.AppendFormat("{0} [label=<\n", removeQualifiers(tbl.Name.ToString()).Replace(".","_"));
+                    outputString.AppendLine("\t<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"4\">");
+                    outputString.AppendFormat("\t\t<tr><td bgcolor=\"lightblue\">{0}</td></tr>\n", removeQualifiers(tbl.Name.ToString()));
+                }
 
                 OutputDiagramPrimaryKey(outputString, tbl,outputFormat);
                 OutputDiagramForeignKey(outputString, tbl,outputFormat);
                 OutputDiagramColumns(outputString, tbl,outputFormat);
 
-                outputString.AppendLine(@"}");
+            if (outputFormat == "PlantUML")
+            {
+                outputString.AppendLine("}\n");
                 outputString.AppendLine("");
-             
+            }
+            else if (outputFormat == "gVizNative")
+            {
+                outputString.AppendLine("\t</table>");
+                outputString.AppendLine(">]\n");
+                outputString.AppendLine("");
+            }
             return (outputString.ToString());
         }
 
@@ -247,10 +269,25 @@ namespace StronglyTypedDacFxSample
             foreach (var Column in t.Columns)
             {
 
-                outputString.AppendFormat("\t{0}:", Column.Name.Parts[2]);
+                if (outputFormat == "PlantUML")
+                {
+                    outputString.AppendFormat("\t{0}:", Column.Name.Parts[2]);
+                }
+                else if (outputFormat == "gVizNative")
+                {
+                    outputString.AppendFormat("\t\t<tr><td align=\"left\">{0}:", Column.Name.Parts[2]);
+                }
+                
                 foreach (var columnDataType in Column.DataType)
                 {
-                    outputString.AppendFormat(" {0}\n", removeQualifiers(columnDataType.Name.ToString()));
+                    if (outputFormat == "PlantUML")
+                    {
+                        outputString.AppendFormat(" {0}\n", removeQualifiers(columnDataType.Name.ToString()));
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        outputString.AppendFormat("{0}</td></tr>\n", removeQualifiers(columnDataType.Name.ToString()));
+                    }
                 }
             }
             return (outputString.ToString());
@@ -262,14 +299,29 @@ namespace StronglyTypedDacFxSample
             {
                 foreach (var primaryKeyColumn in primaryKey.Columns)
                 {
-                    outputString.AppendFormat("\t{0}:", primaryKeyColumn.Name.Parts[2]);
+
+                    if (outputFormat == "PlantUML")
+                    { 
+                        outputString.AppendFormat("\t{0}:", primaryKeyColumn.Name.Parts[2]);
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        outputString.AppendFormat("\t\t<tr><td align=\"left\">{0}:", primaryKeyColumn.Name.Parts[2]);
+                    }
 
                     foreach (var primarykeyDataType in primaryKeyColumn.DataType)
                     {
                         outputString.AppendFormat(" {0} ", removeQualifiers(primarykeyDataType.Name.ToString()));
                     }
 
-                    outputString.AppendFormat("<<PK>>\n");
+                    if (outputFormat == "PlantUML")
+                    {
+                        outputString.AppendFormat("<<PK>>\n");
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        outputString.AppendFormat("(PK)</td></tr>\n");
+                    }
                 }
             }
             return (outputString.ToString());
@@ -281,14 +333,30 @@ namespace StronglyTypedDacFxSample
             {
                 foreach (var foreignKeyColumn in foreignKey.Columns)
                 {
-                    outputString.AppendFormat("\t{0}:", foreignKeyColumn.Name.Parts[2]);
+                    
+                    if (outputFormat == "PlantUML")
+                    {
+                        outputString.AppendFormat("\t{0}:", foreignKeyColumn.Name.Parts[2]);
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        outputString.AppendFormat("\t\t<tr><td align=\"left\">{0}", foreignKeyColumn.Name.Parts[2]);
+                    }
+
 
                     foreach (var foreignKeyDataType in foreignKeyColumn.DataType)
                     {
                         outputString.AppendFormat(" {0} ", removeQualifiers(foreignKeyDataType.Name.ToString()));
                     }
 
-                    outputString.AppendFormat("<<FK>>\n");
+                    if (outputFormat == "PlantUML")
+                    {
+                        outputString.AppendFormat("<<FK>>\n");
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        outputString.AppendFormat("(FK)</td></tr>\n");
+                    }
                 }
 
             }
@@ -301,15 +369,20 @@ namespace StronglyTypedDacFxSample
 
             foreach(var rel in rels)
             {
-                System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()));
+                System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".","_"));
 
                 foreach (var ft in rel.ForeignTable)
                 {
-                    System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
-                }
-           
+                    if (outputFormat == "PlantUML")
+                    {
+                        System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
+                    }
+                    else if (outputFormat == "gVizNative")
+                    {
+                        System.Console.WriteLine("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
+                    }
 
-                
+                }
 
             }
   
