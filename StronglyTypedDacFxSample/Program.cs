@@ -7,9 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Dac.Extensions.Prototype;
 using Microsoft.SqlServer.Dac.Model;
-using Shields.GraphViz.Models;
-using Shields.GraphViz.Services;
-using Shields.GraphViz.Components;
+using GraphVizWrapper;
+using GraphVizWrapper.Commands;
+using GraphVizWrapper.Queries;
+
 
 namespace StronglyTypedDacFxSample
 {
@@ -64,14 +65,22 @@ namespace StronglyTypedDacFxSample
             }
 
             var s = OutputDiagramSchemaDef(model,fmt);
+            var t = OutputDiagramRelationships(model, fmt);
 
             System.Console.WriteLine("///////////////////////////////////////////////////////////////////////////////////");
 
             // really need to tie all the strings together
-            System.Console.WriteLine(modeldef);
-            System.Console.Write(s);
-            System.Console.WriteLine("");
-            OutputDiagramRelationships(model,fmt);
+
+            StringBuilder outputString = new StringBuilder();
+
+            outputString.Append(modeldef);
+            outputString.Append(s);
+            outputString.Append(t);
+
+            //System.Console.WriteLine(modeldef);
+            //System.Console.Write(s);
+            //System.Console.WriteLine("");
+
 
             var modelfooter = "";
 
@@ -83,9 +92,19 @@ namespace StronglyTypedDacFxSample
             {
                 modelfooter = "\n}";
             }
-            System.Console.WriteLine(modelfooter);
+           
 
-                GraphVizTest(model);
+            outputString.Append(modelfooter);
+
+            System.Console.Write(outputString.ToString());
+
+            var getStartProcessQuery = new GetStartProcessQuery();
+            var getProcessStartInfoQuery = new GetProcessStartInfoQuery();
+            var registerLayoutPluginCommand = new RegisterLayoutPluginCommand(getProcessStartInfoQuery, getStartProcessQuery);
+            var gvizWrapper = new GraphGeneration(getStartProcessQuery, getProcessStartInfoQuery, registerLayoutPluginCommand);
+
+            byte[] output = gvizWrapper.GenerateGraph(outputString.ToString(), Enums.GraphReturnType.Png);
+            File.WriteAllBytes(@".\graph.png", output);
 
 
             System.Console.ReadKey();
@@ -193,7 +212,7 @@ namespace StronglyTypedDacFxSample
                         }
                     }
 
-                    outputstring.Append("}\n");
+                    //outputstring.Append("}\n");
                 }
             }
 
@@ -363,29 +382,34 @@ namespace StronglyTypedDacFxSample
             return (outputString.ToString());
         }
 
-        private static void OutputDiagramRelationships(TSqlTypedModel model,string outputFormat)
+        private static string OutputDiagramRelationships(TSqlTypedModel model,string outputFormat)
         {
             var rels = model.GetObjects<TSqlForeignKeyConstraint>(DacQueryScopes.UserDefined);
+            var strOut = new StringBuilder();
 
             foreach(var rel in rels)
             {
-                System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".","_"));
+                //System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".","_"));
+
+                strOut.AppendFormat("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".", "_"));
 
                 foreach (var ft in rel.ForeignTable)
                 {
                     if (outputFormat == "PlantUML")
                     {
-                        System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
+                        //System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
+                        strOut.AppendFormat(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
                     }
                     else if (outputFormat == "gVizNative")
                     {
-                        System.Console.WriteLine("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
+                        //System.Console.WriteLine("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
+                        strOut.AppendFormat("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
                     }
 
                 }
 
             }
-  
+            return (strOut.ToString());
         }
 
         
@@ -394,21 +418,21 @@ namespace StronglyTypedDacFxSample
 
             string graphVizBin = @"C:\Program Files (x86)\Graphviz2.38\bin";
         
-            Graph graph = Graph.Undirected
-                 .Add(EdgeStatement.For("a", "b"))
-                .Add(EdgeStatement.For("a", "c"));
+            //Graph graph = Graph.Undirected
+            //     .Add(EdgeStatement.For("a", "b"))
+            //    .Add(EdgeStatement.For("a", "c"));
 
           
 
-            IRenderer renderer = new Renderer(graphVizBin);
-            using (Stream file = File.Create("graph.png"))
-            {
-                await renderer.RunAsync(
-                    graph, file,
-                    RendererLayouts.Dot,
-                    RendererFormats.Png,
-                    CancellationToken.None);
-            }
+            //IRenderer renderer = new Renderer(graphVizBin);
+            //using (Stream file = File.Create("graph.png"))
+            //{
+            //    await renderer.RunAsync(
+            //        graph, file,
+            //        RendererLayouts.Dot,
+            //        RendererFormats.Png,
+            //        CancellationToken.None);
+            //}
 
         }
     }
