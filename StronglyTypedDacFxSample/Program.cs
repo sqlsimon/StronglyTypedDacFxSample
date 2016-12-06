@@ -262,8 +262,6 @@ namespace StronglyTypedDacFxSample
                     outputString.AppendFormat("\t\t<tr><td bgcolor=\"lightblue\">{0}</td></tr>\n", removeQualifiers(tbl.Name.ToString()));
                 }
 
-                OutputDiagramPrimaryKey(outputString, tbl,outputFormat);
-                OutputDiagramForeignKey(outputString, tbl,outputFormat);
                 OutputDiagramColumns(outputString, tbl,outputFormat);
 
             if (outputFormat == "PlantUML")
@@ -301,17 +299,68 @@ namespace StronglyTypedDacFxSample
                 {
                     if (outputFormat == "PlantUML")
                     {
-                        outputString.AppendFormat(" {0}\n", removeQualifiers(columnDataType.Name.ToString()));
+                        outputString.AppendFormat(" {0}", removeQualifiers(columnDataType.Name.ToString()));
                     }
                     else if (outputFormat == "gVizNative")
                     {
-                        outputString.AppendFormat("{0}</td></tr>\n", removeQualifiers(columnDataType.Name.ToString()));
+                        outputString.AppendFormat("{0}", removeQualifiers(columnDataType.Name.ToString()));
                     }
                 }
+
+                //Check to see if the column is a PK
+                foreach (var pk in t.PrimaryKeyConstraints)
+                {
+                    foreach (var primaryKeyColumn in pk.Columns)
+                    {
+                        if (primaryKeyColumn.Name.Parts[2] == Column.Name.Parts[2])
+                        {
+                            if (outputFormat == "PlantUML")
+                            {
+                                outputString.AppendFormat("<<PK>>");
+                            }
+                            else if (outputFormat == "gVizNative")
+                            {
+                                outputString.Append("(PK)");
+                            }
+                        }
+                    }
+                }
+
+                // Check to see if the column is a FK
+                foreach (var fk in t.ForeignKeyConstraints)
+                {
+                    foreach (var foreignKeyColumn in fk.Columns)
+                    {
+                        if (foreignKeyColumn.Name.Parts[2] == Column.Name.Parts[2])
+                        {
+                            if (outputFormat == "PlantUML")
+                            {
+                                outputString.AppendFormat("<<FK>>");
+                            }
+                            else if (outputFormat == "gVizNative")
+                            {
+                                outputString.Append("(FK)");
+                            }
+                        }
+                    }
+                }
+
+                if (outputFormat == "PlantUML")
+                {
+                    outputString.AppendFormat("\n");
+                }
+                else if (outputFormat == "gVizNative")
+                {
+                    outputString.AppendFormat("</td></tr>\n");
+                }
+
             }
+
             return (outputString.ToString());
         }
 
+/*
+ * replaced with code in the column 
         private static string OutputDiagramPrimaryKey(StringBuilder outputString, TSqlTable t, string outputFormat)
         {
             foreach (var primaryKey in t.PrimaryKeyConstraints)
@@ -381,6 +430,7 @@ namespace StronglyTypedDacFxSample
             }
             return (outputString.ToString());
         }
+*/
 
         private static string OutputDiagramRelationships(TSqlTypedModel model,string outputFormat)
         {
@@ -389,21 +439,16 @@ namespace StronglyTypedDacFxSample
 
             foreach(var rel in rels)
             {
-                //System.Console.Write("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".","_"));
-
-                strOut.AppendFormat("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".", "_"));
-
                 foreach (var ft in rel.ForeignTable)
                 {
                     if (outputFormat == "PlantUML")
                     {
-                        //System.Console.WriteLine(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
+                        strOut.AppendFormat("{0}", removeQualifiers(rel.GetParent().Name.ToString()).Replace(".", "_"));
                         strOut.AppendFormat(" -|> {0}:FK", removeQualifiers(ft.Name.ToString()));
                     }
                     else if (outputFormat == "gVizNative")
                     {
-                        //System.Console.WriteLine("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
-                        strOut.AppendFormat("->{0};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"));
+                        strOut.AppendFormat("{0}->{1};", removeQualifiers(ft.Name.ToString()).Replace(".", "_"), removeQualifiers(rel.GetParent().Name.ToString()).Replace(".", "_"));
                     }
 
                 }
